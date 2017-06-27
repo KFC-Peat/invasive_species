@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import csv
 
 
+
 ### MAKE THE CSV DATA INTO NUMPY ARRAY
 IMG_NUM = 2295
 
@@ -27,14 +28,14 @@ with open('./data/labels.npy', 'wb') as f:
 
 
 ### MAKE THE IMAGE DATA INTO NUMPY ARRAY
-IMG_NUM = 2295
+IMG_NUM = 1531
 IMG_SIZE = 32
 
 data_set = np.zeros([IMG_NUM,IMG_SIZE,IMG_SIZE,3], dtype=np.uint8)
 
 for i in range(IMG_NUM):
 
-    fp = '../train/{}.jpg'.format(i+1)
+    fp = '../test/{}.jpg'.format(i+1)
 
     image = sp.misc.imread(fp)
     image_scaled = sp.misc.imresize(image,[32,32,3])
@@ -43,5 +44,5 @@ for i in range(IMG_NUM):
     if i%100 == 0:
         print(i)
 
-with open('./data/image32.npy', 'wb') as f:
+with open('./data/test32.npy', 'wb') as f:
     np.save(f, data_set)

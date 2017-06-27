@@ -74,7 +74,7 @@ def trainer(image_array, label_array):
     print('Start neural network training...\n')
 
     bs = 32
-    epochs = 1000
+    epochs = 2000
     max_batch = img_num // bs
     sess.run(tf.global_variables_initializer())
 

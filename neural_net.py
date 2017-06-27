@@ -20,18 +20,20 @@ def bias_variable(shape):
 
 def neural_net(x, y, keep_prob):
 
+    filters = 48
+
     # conv layers varibles
-    W_conv1 = weight_variable([5, 5, 3, 64])
-    b_conv1 = bias_variable([64])
-    W_conv1a = weight_variable([5, 5, 64, 64])
-    b_conv1a = bias_variable([64])
-    W_conv2 = weight_variable([5, 5, 64, 64])
-    b_conv2 = bias_variable([64])
-    W_conv2a = weight_variable([5, 5, 64, 64])
-    b_conv2a = bias_variable([64])
+    W_conv1 = weight_variable([5, 5, 3, filters])
+    b_conv1 = bias_variable([filters])
+    W_conv1a = weight_variable([5, 5, filters, filters])
+    b_conv1a = bias_variable([filters])
+    W_conv2 = weight_variable([5, 5, filters, filters])
+    b_conv2 = bias_variable([filters])
+    W_conv2a = weight_variable([5, 5, filters, filters])
+    b_conv2a = bias_variable([filters])
 
     # fully connected varibles
-    W_fc1 = weight_variable([8 * 8 * 64, 1024])
+    W_fc1 = weight_variable([8 * 8 * filters, 1024])
     b_fc1 = bias_variable([1024])
     W_fc2 = weight_variable([1024, 2])
     b_fc2 = bias_variable([2])
@@ -47,7 +49,7 @@ def neural_net(x, y, keep_prob):
     h_pool2 = max_pool_2x2(h_conv2a)
 
     # 8*8*64 to 1024, fully connected
-    h_pool_flat = tf.reshape(h_pool2, [-1, 8*8*64])
+    h_pool_flat = tf.reshape(h_pool2, [-1, 8*8*filters])
     h_fc1 = tf.nn.relu(tf.matmul(h_pool_flat, W_fc1) + b_fc1)
 
     # 1024 layer dropout

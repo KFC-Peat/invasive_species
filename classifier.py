@@ -1,3 +1,4 @@
+import math as m
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -43,20 +44,56 @@ def classify(image_array):
     batchs = IMG_NUM // bs
 
     image_batch = np.zeros([bs, IMG_SIZE, IMG_SIZE, 3], dtype=np.uint8)
-    label_batch = np.zeros([bs, 2], dtype=np.uint8)
-    predictions = np.zeros([IMG_NUM], dtype=np.uint8)
+    zeros = np.zeros([bs, 2], dtype=np.uint8)
+    ones = np.zeros([bs, 2], dtype=np.uint8)
+    predictions = np.zeros([IMG_NUM], dtype=np.float32)
+    prob = np.zeros([bs], dtype=np.float32)
 
     for i in range(bs):
-        label_batch[i,1] = 1
+        ones[i,1] = 1
+        zeros[i,0] = 1
 
     for i in range(batchs):
         image_batch[:,:,:,:] = image_array[bs*i:bs*(i+1),:,:,:]
 
-        preds = correct_prediction.eval(feed_dict={x: image_batch, y: label_batch, keep_prob: 1.0})
+        ce_ones = cross_entropy.eval(feed_dict={x: image_batch, y: ones, keep_prob: 1.0})
+        ce_zeros = cross_entropy.eval(feed_dict={x: image_batch, y: zeros, keep_prob: 1.0})
+
+        
+        for j in range(bs):
+            if ce_zeros[j] == 0:
+                prob[j] = -m.log(ce_ones[j])
+            else:
+                prob[j] = m.log(ce_zeros[j])
 
         for j in range(bs):
-            if preds[j]:
-                predictions[i*bs+j] = 1
+            predictions[i*bs+j] = prob[j]
+
+    
+    #last semibatch
+    image_batch[:,:,:,:] = image_array[IMG_NUM-bs:IMG_NUM,:,:,:]
+
+    ce_ones = cross_entropy.eval(feed_dict={x: image_batch, y: ones, keep_prob: 1.0})
+    ce_zeros = cross_entropy.eval(feed_dict={x: image_batch, y: zeros, keep_prob: 1.0})
+
+    for j in range(bs):
+        if ce_zeros[j] == 0:
+            prob[j] = -m.log(ce_ones[j])
+        else:
+            prob[j] = m.log(ce_zeros[j])
+
+    for j in range(bs):
+        predictions[IMG_NUM-bs+j] = prob[j]
+
+    
+    #normalise between 0 and 1
+    for j in range(len(predictions)):
+        if predictions[j] >= 10:
+            predictions[j] = 1
+        elif predictions[j] <= -10:
+            predictions[j] = 0
+        else:
+            predictions[j] = predictions[j] / 20 + 0.5
     
     return predictions
 
@@ -64,6 +101,9 @@ def classify(image_array):
 image_array = data_loader()
 
 predictions = classify(image_array)
+
+"""for i in range(len(predictions)):
+    print(predictions[i])"""
 
 with open('./data/predictions.npy', 'wb') as f:
     np.save(f, predictions)

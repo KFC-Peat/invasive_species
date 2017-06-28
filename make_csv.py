@@ -13,3 +13,5 @@ with open('./data/answers.csv', 'w') as csvfile:
     for i in range(len(predictions)):
         writer.writerow([i+1,predictions[i]])
 
+print('DONE!')
+

@@ -20,36 +20,57 @@ def bias_variable(shape):
 
 def neural_net(x, y, keep_prob):
 
-    filters = 64
+    filters = 32
 
     # conv layers varibles
     W_conv1 = weight_variable([5, 5, 3, filters])
     b_conv1 = bias_variable([filters])
     W_conv1a = weight_variable([5, 5, filters, filters])
     b_conv1a = bias_variable([filters])
+
     W_conv2 = weight_variable([5, 5, filters, filters])
     b_conv2 = bias_variable([filters])
     W_conv2a = weight_variable([5, 5, filters, filters])
     b_conv2a = bias_variable([filters])
 
+    W_conv3 = weight_variable([5, 5, filters, filters])
+    b_conv3 = bias_variable([filters])
+    W_conv3a = weight_variable([5, 5, filters, filters])
+    b_conv3a = bias_variable([filters])
+
+    W_conv4 = weight_variable([5, 5, filters, filters])
+    b_conv4 = bias_variable([filters])
+    W_conv4a = weight_variable([5, 5, filters, filters])
+    b_conv4a = bias_variable([filters])
+
     # fully connected varibles
-    W_fc1 = weight_variable([8 * 8 * filters, 1024])
+    W_fc1 = weight_variable([6 * 6 * filters, 1024])
     b_fc1 = bias_variable([1024])
     W_fc2 = weight_variable([1024, 2])
     b_fc2 = bias_variable([2])
 
-    # 32x32 to 16x16, 64 filters
+    # 96x96 to 48x48, 64 filters
     h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
     h_conv1a = tf.nn.relu(conv2d(h_conv1, W_conv1a) + b_conv1a)
     h_pool1 = max_pool_2x2(h_conv1a)
 
-    # 16x16 to 8x8, 64 filters
+    # 48x48 to 24x24, 64 filters
     h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
     h_conv2a = tf.nn.relu(conv2d(h_conv2, W_conv2a) + b_conv2a)
     h_pool2 = max_pool_2x2(h_conv2a)
 
-    # 8*8*64 to 1024, fully connected
-    h_pool_flat = tf.reshape(h_pool2, [-1, 8*8*filters])
+    # 24x24 to 8x8, 64 filters
+    h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
+    h_conv3a = tf.nn.relu(conv2d(h_conv3, W_conv3a) + b_conv3a)
+    h_pool3 = max_pool_2x2(h_conv3a)
+
+    # 12x12 to 6x6, 64 filters
+    h_conv4 = tf.nn.relu(conv2d(h_pool3, W_conv4) + b_conv4)
+    h_conv4a = tf.nn.relu(conv2d(h_conv4, W_conv4a) + b_conv4a)
+    h_pool4 = max_pool_2x2(h_conv4a)
+
+    # 6*6*64 to 1024, fully connected
+    h_pool_flat = tf.reshape(h_pool4, [-1, 6*6*filters])
     h_fc1 = tf.nn.relu(tf.matmul(h_pool_flat, W_fc1) + b_fc1)
 
     # 1024 layer dropout

@@ -8,12 +8,12 @@ import sys
 import tensorflow as tf
 import time
 
-from neural_net import neural_net
+from neural_net48 import neural_net
 
 # Load the testing data
 def data_loader():
 
-    with open('./data/test32.npy', 'rb') as f:
+    with open('./data/test48.npy', 'rb') as f:
         image_array = np.load(f)
 
     return image_array
@@ -21,7 +21,7 @@ def data_loader():
 def classify(image_array):
 
     IMG_NUM = np.shape(image_array)[0]
-    IMG_SIZE = 32
+    IMG_SIZE = 48
 
     sess = tf.InteractiveSession()
 
@@ -107,3 +107,5 @@ predictions = classify(image_array)
 
 with open('./data/predictions.npy', 'wb') as f:
     np.save(f, predictions)
+
+print('\n\n DONE! \n\n')

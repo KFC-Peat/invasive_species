@@ -5,11 +5,12 @@ from os import listdir
 import sys
 import matplotlib.pyplot as plt
 import csv
+import random as rand
 
 
-
+"""
 ### MAKE THE CSV DATA INTO NUMPY ARRAY
-IMG_NUM = 2295
+IMG_NUM = 1531
 
 data_labels = np.zeros([IMG_NUM], dtype=np.uint8)
 
@@ -24,12 +25,12 @@ for i in range(IMG_NUM):
 
 with open('./data/labels.npy', 'wb') as f:
     np.save(f, data_labels)
-
+"""
 
 
 ### MAKE THE IMAGE DATA INTO NUMPY ARRAY
 IMG_NUM = 1531
-IMG_SIZE = 32
+IMG_SIZE = 48
 
 data_set = np.zeros([IMG_NUM,IMG_SIZE,IMG_SIZE,3], dtype=np.uint8)
 
@@ -38,11 +39,12 @@ for i in range(IMG_NUM):
     fp = '../test/{}.jpg'.format(i+1)
 
     image = sp.misc.imread(fp)
-    image_scaled = sp.misc.imresize(image,[32,32,3])
+
+    image_scaled = sp.misc.imresize(image,[IMG_SIZE,IMG_SIZE,3])
     data_set[i,:,:,:] = image_scaled
 
     if i%100 == 0:
         print(i)
 
-with open('./data/test32.npy', 'wb') as f:
+with open('./data/test48.npy', 'wb') as f:
     np.save(f, data_set)

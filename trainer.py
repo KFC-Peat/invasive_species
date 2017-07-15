@@ -1,107 +1,122 @@
-import matplotlib.pyplot as plt
+import keras
 import numpy as np
-import os
 import scipy as sp
-import scipy.misc
+from scipy import misc
+import pandas as pd
+import pickle
 import sys
+import os
 import tensorflow as tf
-import time
+from tqdm import tqdm
+import gc
 
-from neural_net import neural_net
+from sklearn import model_selection
+from sklearn import metrics
 
+from keras import optimizers
+from keras.models import Sequential
+from keras.models import load_model
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.layers.normalization import BatchNormalization
+from keras.metrics import categorical_accuracy
+from keras.preprocessing.image import ImageDataGenerator
 
-# Load the training data
-def data_loader():
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Turn off tensorflow output
 
-    with open('./data/image32.npy', 'rb') as f:
-        image_array = np.load(f)
-    with open('./data/labels.npy', 'rb') as f:
-        label_array = np.load(f)
+# Constants
+IMG_SIZE = 128
+learn_rates = [1e-4, 1e-5]
 
-    length = np.shape(label_array)[0]
-
-    label_array_onehot = np.zeros([length,2], dtype=np.uint8)
-
-    for i in range(length):
-        if label_array[i] == 0:
-            label_array_onehot[i,0] = 1
-        else:
-            label_array_onehot[i,1] = 1
-
-    return image_array, label_array_onehot
-
-
-
-# This function trains a binary neural network to determine whether a feature is present
-def trainer(image_array, label_array):
-
-    # Get data dimentions
-    img_num = np.shape(image_array)[0]
-    img_size = np.shape(image_array)[1]
-
-
-
-    # Initialise neural network
-
-    sess = tf.InteractiveSession()
-
-    x = tf.placeholder(dtype=tf.float32, shape=[None, img_size, img_size, 3])
-    y = tf.placeholder(dtype=tf.float32, shape=[None, 2])
-    keep_prob = tf.placeholder(tf.float32)
-
-    y_ = neural_net(x, y, keep_prob)
-
-    print('Initialised neural network...\n')
+# Convulutional Neural Network
+def model_nn():
+    model = Sequential()
+    model.add(Conv2D(16, (3, 3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 3)))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(32, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(128, (3, 3), activation='relu'))   
+    model.add(Flatten())
+    model.add(Dense(2048, activation='relu'))
+    model.add(Dropout(0.65))
+    model.add(Dense(512, activation='relu'))
+    model.add(Dropout(0.55))
+    model.add(Dense(1, activation='sigmoid'))
+    return model
 
 
 
-    # More neural network initialisation
-
-    cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=y_))
-    train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-    saver = tf.train.Saver()
-    filepath = './models/feature'
-
-    print('Initialised neural network P2...\n')
+print('\nStarto!\n')
 
 
+# Load and process train labels
+with open('../train_labels.csv', 'r') as f:
+	labels_u = pd.read_csv(f)
 
-    # Train the network
-    
-    print('Start neural network training...\n')
+length = len(labels_u)
 
-    bs = 32
-    epochs = 2000
-    max_batch = img_num // bs
-    sess.run(tf.global_variables_initializer())
+labels = np.zeros((length), dtype=np.uint8)
+for i in tqdm(range(length)):
+	labels[i] = labels_u['invasive'][i]
+del labels_u
+gc.collect()
 
-    image_batch = np.zeros([bs, img_size, img_size, 3], dtype=np.uint8)
-    label_batch = np.zeros([bs, 2], dtype=np.uint8)
-
-    for i in range(epochs):
-
-        cb = i % max_batch
-
-        image_batch[:,:,:,:] = image_array[bs*cb:bs*(cb+1),:,:,:]
-        label_batch[:,:] = label_array[bs*cb:bs*(cb+1),:]
-
-        if i%100 == 0:
-            print(i, accuracy.eval(feed_dict={x: image_batch, y: label_batch, keep_prob: 1.0}))
-
-        train_step.run(feed_dict={x: image_batch, y: label_batch, keep_prob: 0.5})
+print('Loaded and processed train labels...\n')
 
 
-    # Training complete
-    print('\nFinished training...\n\n')
+# Load and process image data
+with open('./data/train.npy', 'rb') as f:
+	images_u = np.load(f)
 
-    saver.save(sess, filepath) # save neural net
-    sess.close() # close tensorflow session
+images = np.zeros((length,IMG_SIZE,IMG_SIZE,3), dtype=np.uint8)
+for i in tqdm(range(length)):
+	images[i] = sp.misc.imresize(images_u[i], (IMG_SIZE,IMG_SIZE,3))
+del images_u
+gc.collect()
+
+print('Loaded and processed train images...\n')
+
+
+print('Start training network\n')
+
+model = model_nn()
+print(model.summary())
+kf = model_selection.KFold(n_splits = 7, shuffle = True)
+
+for train, test in kf.split(images):
+	x_tr = images[train]; x_te = images[test]
+	y_tr = labels[train]; y_te = labels[test]
+
+	datagen = ImageDataGenerator(
+			rotation_range = 30,
+			width_shift_range = 0.2,
+			height_shift_range = 0.2,
+			shear_range = 0.2,
+			zoom_range = 0.2,
+			horizontal_flip = True,
+			vertical_flip = True,
+			fill_mode = 'nearest')
+
+	for learn_rate in learn_rates:
+		print('\nTraining model with learn rate: ', learn_rate, '\n')
+
+		earlystop = keras.callbacks.EarlyStopping(
+			monitor='val_loss', patience = 5, verbose=0, mode='auto')
+
+		sgd = optimizers.SGD(lr = learn_rate, decay = 0, momentum = 0.8, nesterov = True)
+		model.compile(loss = 'binary_crossentropy', optimizer = sgd, metrics=['accuracy'])
+
+		model.fit_generator(datagen.flow(x_tr, y_tr, batch_size=32),
+	                    steps_per_epoch=256, epochs=1000,
+	                    callbacks=[earlystop], validation_data=(x_te, y_te))
+
+	model.save('./models/model.h5')
+	break
+
+
+print('\nEnd!\n')
 
 
 
-image_array, label_array = data_loader()
-
-trainer(image_array,label_array)

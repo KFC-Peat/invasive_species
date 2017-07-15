@@ -1,111 +1,60 @@
-import math as m
-import matplotlib.pyplot as plt
+import keras
 import numpy as np
-import os
 import scipy as sp
-import scipy.misc
+from scipy import misc
+import pandas as pd
+import pickle
 import sys
+import os
 import tensorflow as tf
-import time
+from tqdm import tqdm
+import gc
 
-from neural_net48 import neural_net
+from sklearn import model_selection
+from sklearn import metrics
 
-# Load the testing data
-def data_loader():
+from keras import optimizers
+from keras.models import Sequential
+from keras.models import load_model
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.layers.normalization import BatchNormalization
+from keras.metrics import categorical_accuracy
+from keras.preprocessing.image import ImageDataGenerator
 
-    with open('./data/test48.npy', 'rb') as f:
-        image_array = np.load(f)
-
-    return image_array
-
-def classify(image_array):
-
-    IMG_NUM = np.shape(image_array)[0]
-    IMG_SIZE = 48
-
-    sess = tf.InteractiveSession()
-
-    x = tf.placeholder(dtype=tf.float32, shape=[None, IMG_SIZE, IMG_SIZE, 3])
-    y = tf.placeholder(dtype=tf.float32, shape=[None, 2])
-    keep_prob = tf.placeholder(tf.float32)
-
-    y_ = neural_net(x, y, keep_prob)
-
-    saver = tf.train.Saver()
-    filepath = './models/feature'
-    saver.restore(sess, filepath)
-
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=y_)
-    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-
-    print('\nLoaded neural network...\n')
-
-    bs = 32
-    batchs = IMG_NUM // bs
-
-    image_batch = np.zeros([bs, IMG_SIZE, IMG_SIZE, 3], dtype=np.uint8)
-    zeros = np.zeros([bs, 2], dtype=np.uint8)
-    ones = np.zeros([bs, 2], dtype=np.uint8)
-    predictions = np.zeros([IMG_NUM], dtype=np.float32)
-    prob = np.zeros([bs], dtype=np.float32)
-
-    for i in range(bs):
-        ones[i,1] = 1
-        zeros[i,0] = 1
-
-    for i in range(batchs):
-        image_batch[:,:,:,:] = image_array[bs*i:bs*(i+1),:,:,:]
-
-        ce_ones = cross_entropy.eval(feed_dict={x: image_batch, y: ones, keep_prob: 1.0})
-        ce_zeros = cross_entropy.eval(feed_dict={x: image_batch, y: zeros, keep_prob: 1.0})
-
-        
-        for j in range(bs):
-            if ce_zeros[j] == 0:
-                prob[j] = -m.log(ce_ones[j])
-            else:
-                prob[j] = m.log(ce_zeros[j])
-
-        for j in range(bs):
-            predictions[i*bs+j] = prob[j]
-
-    
-    #last semibatch
-    image_batch[:,:,:,:] = image_array[IMG_NUM-bs:IMG_NUM,:,:,:]
-
-    ce_ones = cross_entropy.eval(feed_dict={x: image_batch, y: ones, keep_prob: 1.0})
-    ce_zeros = cross_entropy.eval(feed_dict={x: image_batch, y: zeros, keep_prob: 1.0})
-
-    for j in range(bs):
-        if ce_zeros[j] == 0:
-            prob[j] = -m.log(ce_ones[j])
-        else:
-            prob[j] = m.log(ce_zeros[j])
-
-    for j in range(bs):
-        predictions[IMG_NUM-bs+j] = prob[j]
-
-    
-    #normalise between 0 and 1
-    for j in range(len(predictions)):
-        if predictions[j] >= 10:
-            predictions[j] = 1
-        elif predictions[j] <= -10:
-            predictions[j] = 0
-        else:
-            predictions[j] = predictions[j] / 20 + 0.5
-    
-    return predictions
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Turn off tensorflow output
 
 
-image_array = data_loader()
+IMG_SIZE = 128
 
-predictions = classify(image_array)
+with open('../sample_submission.csv', 'r') as f:
+	ss = pd.read_csv(f)
 
-"""for i in range(len(predictions)):
-    print(predictions[i])"""
+length = len(ss)
 
-with open('./data/predictions.npy', 'wb') as f:
-    np.save(f, predictions)
+# Load and process image data
+with open('./data/test.npy', 'rb') as f:
+	images_u = np.load(f)
 
-print('\n\n DONE! \n\n')
+images = np.zeros((length,IMG_SIZE,IMG_SIZE,3), dtype=np.uint8)
+for i in tqdm(range(length)):
+	images[i] = sp.misc.imresize(images_u[i], (IMG_SIZE,IMG_SIZE,3))
+del images_u
+gc.collect()
+
+print('Loaded and processed test images...\n')
+
+
+model = load_model('./models/model.h5')
+print('Loaded neural network model...\n')
+
+predictions = model.predict(images)
+print('Data predictions made...\n')
+
+for i in tqdm(range(len(ss))):
+	ss.loc[i,'invasive'] = predictions[i][0]
+
+with open('./data/submission.csv', 'w') as f:
+	ss.to_csv(f, index=False)
+
+print('\nDone!\n')
